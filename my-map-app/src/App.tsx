@@ -6,7 +6,7 @@ import { toPoint } from "mgrs";
 import * as tilebelt from "@mapbox/tilebelt";
 import * as MarchingSquares from "marchingsquares";
 import MapClickHandler from "./components/MapClickHandler";
-const MAPBOX_TOKEN = "pk.eyJ1IjoiYmtoZWJlcnQiLCJhIjoiY21idjB1c2p4MGs5dzJscTFwdXlqY2E3YSJ9.ac5ytr69UhIEwGFrKyX5Mw";
+const MAPBOX_TOKEN = 'YOUR-MAPBOX-TOKEN';
 const ZOOM = 14;
 
 // Military unit types with icons
