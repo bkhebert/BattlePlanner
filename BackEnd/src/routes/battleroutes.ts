@@ -27,4 +27,27 @@ const BattleRouter = Router();
 
   })
 
+  // Get all plans
+BattleRouter.get('/plans', async (req: any, res: any) => {
+  try {
+    const plans = await BattlePlan.findAll();
+    res.json(plans);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch plans' });
+  }
+});
+
+// Get plan image
+BattleRouter.get('/plans/:id/image', async (req: any, res: any) => {
+  try {
+    const plan = await BattlePlan.findByPk(req.params.id);
+    if (!plan) return res.status(404).send('Plan not found');
+    
+    res.set('Content-Type', 'image/png');
+    res.send(plan.imageData);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch plan image' });
+  }
+});
+
   export default BattleRouter;
