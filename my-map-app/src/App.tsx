@@ -8,7 +8,7 @@ import * as tilebelt from "@mapbox/tilebelt";
 import * as MarchingSquares from "marchingsquares";
 import MapClickHandler from "./components/MapClickHandler";
 import axios from "axios";
-const MAPBOX_TOKEN = 'pk.eyJ1IjoiYmtoZWJlcnQiLCJhIjoiY21idjB1c2p4MGs5dzJscTFwdXlqY2E3YSJ9.ac5ytr69UhIEwGFrKyX5Mw';
+const MAPBOX_TOKEN = '';
 const ZOOM = 14;
 
 // Military unit types with icons
@@ -62,29 +62,34 @@ function TerrainContourMap() {
 
 const savePlanToDatabase = async (blob: Blob) => {
   try {
-    // Convert blob to Buffer for PostgreSQL
-    const arrayBuffer = await blob.arrayBuffer();
-    // const buffer = Buffer.from(arrayBuffer);
-    await axios.post('http://localhost:3000/api/battle/saveBattlePlan', {
-      arrayBuffer,
-      mgrsCoord,
-      units,
-      contours
-    },{
+    const formData = new FormData();
+    formData.append('image', blob, `${planName || 'battle-plan'}.png`);
+    formData.append('name', planName || `Plan-${new Date().toISOString()}`);
+    formData.append('mgrsCoord', mgrsCoord);
+    formData.append('units', JSON.stringify(units));
+    formData.append('contours', JSON.stringify(contours));
+
+    const response = await axios.post(
+      'http://localhost:3000/api/battle/saveBattlePlan',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    if (response.status === 201) {
+      alert('Battle plan saved successfully!');
+      // Refresh the saved plans list
+      const plansResponse = await fetch('http://localhost:3000/api/battle/plans', {
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
         },
-    })
-    // await BattlePlan.create({
-    //   name: planName || `Plan-${new Date().toISOString()}`,
-    //   mgrsCoord,
-    //   imageData: buffer,
-    //   units,
-    //   contours
-    // });
-    
-    alert('Battle plan saved successfully!');
+      });
+      const plans = await plansResponse.json();
+      setSavedPlans(plans);
+    }
   } catch (error) {
     console.error('Error saving plan:', error);
     alert('Failed to save battle plan');

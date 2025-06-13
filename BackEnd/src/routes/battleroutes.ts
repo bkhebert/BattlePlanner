@@ -31,6 +31,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 
   // Get all plans
 BattleRouter.get('/plans', async (req: any, res: any) => {
+  console.log('attempting to get battle plans');
   try {
     const plans = await BattlePlan.findAll();
     res.json(plans);
@@ -41,6 +42,7 @@ BattleRouter.get('/plans', async (req: any, res: any) => {
 
 // Get plan image
 BattleRouter.get('/plans/:id/image', async (req: any, res: any) => {
+  console.log('attempting to get battle image')
   try {
     const plan = await BattlePlan.findByPk(req.params.id);
     if (!plan) return res.status(404).send('Plan not found');
