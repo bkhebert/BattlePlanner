@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { MapScreenshot } from "./components/MapScreenShot";
 import { MapContainer, TileLayer, Polyline, Marker, Popup } from "react-leaflet";
 import L from 'leaflet';
 import "leaflet/dist/leaflet.css";
@@ -6,6 +7,7 @@ import { toPoint } from "mgrs";
 import * as tilebelt from "@mapbox/tilebelt";
 import * as MarchingSquares from "marchingsquares";
 import MapClickHandler from "./components/MapClickHandler";
+import axios from "axios";
 const MAPBOX_TOKEN = 'YOUR-MAPBOX-TOKEN';
 const ZOOM = 14;
 
@@ -40,7 +42,36 @@ function TerrainContourMap() {
   //      console.log('Clicked at:', latlng);
   //      console.log(clickedLatLng)
   //    };
-
+const savePlanToDatabase = async (blob: Blob) => {
+  try {
+    // Convert blob to Buffer for PostgreSQL
+    const arrayBuffer = await blob.arrayBuffer();
+    // const buffer = Buffer.from(arrayBuffer);
+    await axios.post('http://localhost:3000/api/battle/saveBattlePlan', {
+      arrayBuffer,
+      mgrsCoord,
+      units,
+      contours
+    },{
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+    })
+    // await BattlePlan.create({
+    //   name: planName || `Plan-${new Date().toISOString()}`,
+    //   mgrsCoord,
+    //   imageData: buffer,
+    //   units,
+    //   contours
+    // });
+    
+    alert('Battle plan saved successfully!');
+  } catch (error) {
+    console.error('Error saving plan:', error);
+    alert('Failed to save battle plan');
+  }
+};
   // Create custom unit icons
   const createUnitIcon = (type: keyof typeof UNIT_TYPES) => {
     const { iconColor, symbol } = UNIT_TYPES[type];

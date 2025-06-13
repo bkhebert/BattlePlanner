@@ -6,7 +6,7 @@ interface BattlePlanAttributes {
   id?: number;
   name: string;
   mgrsCoord: string;
-  imageData: Blob;
+  imageData: any;
   units: string; // JSON string of units
   contours: string; // JSON string of contours
   createdAt?: Date; // Added by Sequelize
