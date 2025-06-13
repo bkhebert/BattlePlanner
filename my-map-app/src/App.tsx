@@ -1,12 +1,21 @@
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Polyline } from "react-leaflet";
+import { MapContainer, TileLayer, Polyline, Marker, Popup } from "react-leaflet";
+import L from 'leaflet';
 import "leaflet/dist/leaflet.css";
 import { toPoint } from "mgrs";
 import * as tilebelt from "@mapbox/tilebelt";
-import * as MarchingSquares from "marchingsquares";  // Namespace import
-
-const MAPBOX_TOKEN = "YOUR_MAPBOX_TOKEN_HERE";
+import * as MarchingSquares from "marchingsquares";
+import MapClickHandler from "./components/MapClickHandler";
+const MAPBOX_TOKEN = "pk.eyJ1IjoiYmtoZWJlcnQiLCJhIjoiY21idjB1c2p4MGs5dzJscTFwdXlqY2E3YSJ9.ac5ytr69UhIEwGFrKyX5Mw";
 const ZOOM = 14;
+
+// Military unit types with icons
+const UNIT_TYPES = {
+  infantry: { name: "Infantry", iconColor: "#4CAF50", symbol: "I" },
+  tank: { name: "Tank", iconColor: "#F44336", symbol: "T" },
+  artillery: { name: "Artillery", iconColor: "#2196F3", symbol: "A" },
+  hq: { name: "HQ", iconColor: "#9C27B0", symbol: "HQ" }
+};
 
 // Decode RGB elevation
 function decodeElevation(r: number, g: number, b: number): number {
@@ -14,18 +23,56 @@ function decodeElevation(r: number, g: number, b: number): number {
 }
 
 function TerrainContourMap() {
+  const [clickedLatLng, setClickedLatLng] = useState(null);
   const [contours, setContours] = useState<Array<Array<[number, number]>>>([]);
   const [bbox, setBbox] = useState<[number, number, number, number] | null>(null);
+  const [mgrsCoord, setMgrsCoord] = useState("15SWC80826445"); // Default MGRS
+  const [units, setUnits] = useState<Array<{
+    id: string;
+    position: [number, number];
+    type: keyof typeof UNIT_TYPES;
+  }>>([]);
+  const [selectedUnitType, setSelectedUnitType] = useState<keyof typeof UNIT_TYPES>("infantry");
+  const [isAddingUnits, setIsAddingUnits] = useState(false);
 
-  useEffect(() => {
-    const loadElevation = async () => {
-      const mgrsCoord = "15SWC80826445"; // Example MGRS input
-      const [lon, lat] = toPoint(mgrsCoord);
+  // const handleMapClick = (latlng) => {
+  //      setClickedLatLng(latlng);
+  //      console.log('Clicked at:', latlng);
+  //      console.log(clickedLatLng)
+  //    };
+
+  // Create custom unit icons
+  const createUnitIcon = (type: keyof typeof UNIT_TYPES) => {
+    const { iconColor, symbol } = UNIT_TYPES[type];
+    return L.divIcon({
+      className: 'custom-icon',
+      html: `<div style="
+        background-color: ${iconColor};
+        width: 24px;
+        height: 24px;
+        border-radius: ${type === 'hq' ? '4px' : '50%'};
+        border: 2px solid white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: ${symbol.length > 1 ? '10px' : '12px'};
+      ">${symbol}</div>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+    });
+  };
+
+  // Load elevation data based on MGRS coordinates
+  const loadElevation = async (mgrsInput: string) => {
+    try {
+      const [lon, lat] = toPoint(mgrsInput);
       const tile = tilebelt.pointToTile(lon, lat, ZOOM);
-      const bbox = tilebelt.tileToBBOX(tile); // [minLng, minLat, maxLng, maxLat]
+      const bbox = tilebelt.tileToBBOX(tile);
       setBbox([bbox[0], bbox[1], bbox[2], bbox[3]]);
 
-      const url = `https://api.mapbox.com/v4/mapbox.terrain-rgb/${tile[2]}/${tile[0]}/${tile[1]}.pngraw?access_token=pk.eyJ1IjoiYmtoZWJlcnQiLCJhIjoiY21idjB1c2p4MGs5dzJscTFwdXlqY2E3YSJ9.ac5ytr69UhIEwGFrKyX5Mw`;
+      const url = `https://api.mapbox.com/v4/mapbox.terrain-rgb/${tile[2]}/${tile[0]}/${tile[1]}.pngraw?access_token=${MAPBOX_TOKEN}`;
       const res = await fetch(url);
       const blob = await res.blob();
       const bitmap = await createImageBitmap(blob);
@@ -70,33 +117,243 @@ function TerrainContourMap() {
       }
 
       setContours(allContours);
-    };
+    } catch (error) {
+      console.error("Error loading elevation data:", error);
+      alert("Invalid MGRS coordinates. Please try again.");
+    }
+  };
 
-    loadElevation();
+  // // Handle map click for unit placement
+  const handleMapClick = (latlng) => {
+    if (!isAddingUnits || !bbox) return;
+    setClickedLatLng(latlng);
+     console.log(clickedLatLng)
+    setUnits(prev => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        position: [latlng.lat, latlng.lng],
+        type: selectedUnitType
+      }
+    ]);
+  };
+
+  // Handle coordinate submission
+  const handleCoordinateSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    loadElevation(mgrsCoord);
+  };
+
+  // Delete a unit
+  const deleteUnit = (id: string) => {
+    setUnits(prev => prev.filter(unit => unit.id !== id));
+  };
+
+  useEffect(() => {
+    loadElevation(mgrsCoord);
   }, []);
 
   return (
-    <div style={{ height: '100vh', width: '100vw' }}>
-      {bbox && (
-        <MapContainer
-          center={[(bbox[1] + bbox[3]) / 2, (bbox[0] + bbox[2]) / 2]}
-          zoom={ZOOM}
-          scrollWheelZoom={true}
-          style={{ height: "100%", width: "100%" }}
-        >
-          <TileLayer
-            url={`https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoiYmtoZWJlcnQiLCJhIjoiY21idjB1c2p4MGs5dzJscTFwdXlqY2E3YSJ9.ac5ytr69UhIEwGFrKyX5Mw`}
-            attribution="© Mapbox"
-          />
-          {contours.map((line, idx) => (
-            <Polyline 
-              key={idx} 
-              positions={line} 
-              pathOptions={{ color: "lime", weight: 1.2 }} 
+    <div style={{ height: '100vh', width: '100vw', display: 'flex' }}>
+      {/* Control Panel */}
+      <div style={{
+        width: '300px',
+        padding: '20px',
+        backgroundColor: '#f5f5f5',
+        borderRight: '1px solid #ddd',
+        overflowY: 'auto'
+      }}>
+        <h2>Battle Planner</h2>
+        
+        {/* Coordinate Input */}
+        <form onSubmit={handleCoordinateSubmit} style={{ marginBottom: '20px' }}>
+          <div style={{ marginBottom: '10px' }}>
+            <label htmlFor="mgrsCoord" style={{ display: 'block', marginBottom: '5px' }}>
+              MGRS Coordinates:
+            </label>
+            <input
+              id="mgrsCoord"
+              type="text"
+              value={mgrsCoord}
+              onChange={(e) => setMgrsCoord(e.target.value)}
+              style={{ width: '100%', padding: '8px' }}
+              placeholder="Enter 6-digit MGRS (e.g., 15SWC80826445)"
             />
-          ))}
-        </MapContainer>
-      )}
+          </div>
+          <button 
+            type="submit" 
+            style={{
+              width: '100%',
+              padding: '10px',
+              backgroundColor: '#4CAF50',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Load Map
+          </button>
+        </form>
+
+        {/* Unit Selection */}
+        <div style={{ marginBottom: '20px' }}>
+          <h3>Unit Placement</h3>
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+            <button
+              onClick={() => setIsAddingUnits(!isAddingUnits)}
+              style={{
+                padding: '8px 12px',
+                backgroundColor: isAddingUnits ? '#F44336' : '#4CAF50',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                flex: 1
+              }}
+            >
+              {isAddingUnits ? 'Cancel Placement' : 'Add Units'}
+            </button>
+          </div>
+
+          {isAddingUnits && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+              {Object.entries(UNIT_TYPES).map(([type, { name, iconColor, symbol }]) => (
+                <div
+                  className={`${symbol}`}
+                  key={type}
+                  onClick={() => setSelectedUnitType(type as keyof typeof UNIT_TYPES)}
+                  style={{
+                    padding: '10px',
+                    backgroundColor: selectedUnitType === type ? iconColor : '#eee',
+                    color: selectedUnitType === type ? 'white' : '#333',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    border: `2px solid ${selectedUnitType === type ? 'black' : 'transparent'}`
+                  }}
+                >
+                  {name}
+                </div>
+                
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Unit List */}
+        <div>
+          <h3>Placed Units ({units.length})</h3>
+          {units.length === 0 ? (
+            <p>No units placed yet</p>
+          ) : (
+            <ul style={{ listStyle: 'none', padding: 0 }}>
+              {units.map(unit => (
+                <li 
+                  key={unit.id} 
+                  style={{
+                    padding: '8px',
+                    marginBottom: '5px',
+                    backgroundColor: UNIT_TYPES[unit.type].iconColor,
+                    color: 'white',
+                    borderRadius: '4px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}
+                >
+                  <span>{UNIT_TYPES[unit.type].name}</span>
+                  <button 
+                    onClick={() => deleteUnit(unit.id)}
+                    style={{
+                      backgroundColor: 'white',
+                      color: UNIT_TYPES[unit.type].iconColor,
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '2px 6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Delete
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      {/* Map Container */}
+      <div style={{ flex: 1, height: '100%' }}>
+        {bbox && (
+          <MapContainer
+            center={[(bbox[1] + bbox[3]) / 2, (bbox[0] + bbox[2]) / 2]}
+            zoom={ZOOM}
+            minZoom={10}  // Prevents zooming too far out
+            maxZoom={18}  // Prevents over-zooming
+            zoomControl={false} // Add custom controls later
+            scrollWheelZoom={true}
+            style={{ height: "100%", width: "100%" }}
+            // onClick={handleMapClick}
+          >
+            <TileLayer
+              url={`https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`}
+              attribution="© Mapbox"
+            />
+            <MapClickHandler onClick={handleMapClick} />
+            
+            {/* Contour Lines */}
+            {contours.map((line, idx) => (
+              <Polyline 
+                key={idx} 
+                positions={line} 
+                pathOptions={{ color: "lime", weight: 1.2 }} 
+              />
+            ))}
+            {/* Military Units */}
+            {units.map(unit => (
+              <Marker
+                key={unit.id}
+                position={unit.position}
+                icon={createUnitIcon(unit.type)}
+                draggable={true}
+                eventHandlers={{
+                  dragend: (e) => {
+                    const marker = e.target;
+                    const position = marker.getLatLng();
+                    setUnits(prev => prev.map(u => 
+                      u.id === unit.id 
+                        ? {...u, position: [position.lat, position.lng]} 
+                        : u
+                    ));
+                  }
+                }}
+              >
+                <Popup>
+                  <div>
+                    <strong>{UNIT_TYPES[unit.type].name}</strong><br />
+                    Position: {unit.position[0].toFixed(4)}, {unit.position[1].toFixed(4)}<br />
+                    <button 
+                      onClick={() => deleteUnit(unit.id)}
+                      style={{
+                        marginTop: '5px',
+                        padding: '2px 8px',
+                        backgroundColor: '#ff4444',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '3px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
+          </MapContainer>
+        )}
+      </div>
     </div>
   );
 }
