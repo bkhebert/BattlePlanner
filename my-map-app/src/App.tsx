@@ -8,7 +8,7 @@ import * as tilebelt from "@mapbox/tilebelt";
 import * as MarchingSquares from "marchingsquares";
 import MapClickHandler from "./components/MapClickHandler";
 import axios from "axios";
-const MAPBOX_TOKEN = '';
+const MAPBOX_TOKEN = 'pk.eyJ1IjoiYmtoZWJlcnQiLCJhIjoiY21idjB1c2p4MGs5dzJscTFwdXlqY2E3YSJ9.ac5ytr69UhIEwGFrKyX5Mw';
 const ZOOM = 14;
 
 // Military unit types with icons
@@ -119,10 +119,25 @@ const savePlanToDatabase = async (blob: Blob) => {
   };
 
   const loadPlan = async (plan) => {
-  setMgrsCoord(plan.mgrsCoord);
-  setUnits(plan.units);
-  setContours(plan.contours);
-  await loadElevation(plan.mgrsCoord);
+  try {
+    setMgrsCoord(plan.mgrsCoord);
+    
+    // Parse the units and contours from JSON strings
+    const parsedUnits = typeof plan.units === 'string' 
+      ? JSON.parse(plan.units) 
+      : plan.units;
+      
+    const parsedContours = typeof plan.contours === 'string'
+      ? JSON.parse(plan.contours)
+      : plan.contours;
+    
+    setUnits(parsedUnits);
+    setContours(parsedContours);
+    await loadElevation(plan.mgrsCoord);
+  } catch (error) {
+    console.error('Error loading plan:', error);
+    alert('Failed to load battle plan');
+  }
 };
   // Load elevation data based on MGRS coordinates
   const loadElevation = async (mgrsInput: string) => {
