@@ -1,19 +1,21 @@
 import { Router } from "express";
+import multer from 'multer';
 import BattlePlan from "../database/models/BattlePlan.js";
 import dotenv from "dotenv";
 
 const BattleRouter = Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
-  BattleRouter.post('/saveBattlePlan', (req: any, res: any) => {
+  BattleRouter.post('/saveBattlePlan', upload.single('image'),  (req: any, res: any) => {
     console.log('saveBattlePlan reached!')
     console.log('redbody', req.body)
     console.log(req.body)
-    const { arrayBuffer, mgrsCoord, units, contours, planName } = req.body;
-     const buffer = Buffer.from(arrayBuffer);
+    const { mgrsCoord, units, contours, planName } = req.body;
+
     BattlePlan.create({
       name: planName || `Plan-${new Date().toISOString()}`,
       mgrsCoord,
-      imageData: buffer,
+      imageData: req.file.buffer,
       units,
       contours 
     }).then((data) => {
@@ -21,7 +23,7 @@ const BattleRouter = Router();
       console.log(data);
       res.sendStatus(200);
     }).catch((err) => {
-      console.error('failed to save data to the database');
+      console.error('failed to save data to the database', err);
       res.sendStatus(500);
     })
 
