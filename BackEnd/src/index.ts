@@ -17,7 +17,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
 app.set('trust proxy', 1);
 
 app.get("/", (req, res) => {

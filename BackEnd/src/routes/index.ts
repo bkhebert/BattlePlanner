@@ -1,5 +1,5 @@
 import { Router } from "express";
-import BattleRouter from "./battleroutes";
+import BattleRouter from "./battleroutes.js";
 
 const apiRouter = Router();
 

@@ -1,6 +1,6 @@
 // src/models/BattlePlan.ts
 import { DataTypes, Optional, Model } from 'sequelize';
-import database from '../db';
+import database from '../db.js';
 
 interface BattlePlanAttributes {
   id?: number;

@@ -8,7 +8,7 @@ import * as tilebelt from "@mapbox/tilebelt";
 import * as MarchingSquares from "marchingsquares";
 import MapClickHandler from "./components/MapClickHandler";
 import axios from "axios";
-const MAPBOX_TOKEN = 'YOUR-MAPBOX-TOKEN';
+const MAPBOX_TOKEN = 'pk.eyJ1IjoiYmtoZWJlcnQiLCJhIjoiY21idjB1c2p4MGs5dzJscTFwdXlqY2E3YSJ9.ac5ytr69UhIEwGFrKyX5Mw';
 const ZOOM = 14;
 
 // Military unit types with icons
@@ -38,12 +38,28 @@ function TerrainContourMap() {
   const [isAddingUnits, setIsAddingUnits] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [planName, setPlanName] = useState('');
-
+  const [savedPlans, setSavedPlans] = useState([]);
   // const handleMapClick = (latlng) => {
   //      setClickedLatLng(latlng);
   //      console.log('Clicked at:', latlng);
   //      console.log(clickedLatLng)
   //    };
+  useEffect(() => {
+  const fetchPlans = async () => {
+    try {
+      const response = await fetch('http://localhost:3000/api/battle/plans',{ 
+        headers: {
+        'Content-Type': 'application/json',
+      }});
+      const plans = await response.json();
+      setSavedPlans(plans);
+    } catch (error) {
+      console.error('Error loading plans:', error);
+    }
+  };
+  fetchPlans();
+}, []);
+
 const savePlanToDatabase = async (blob: Blob) => {
   try {
     // Convert blob to Buffer for PostgreSQL
@@ -97,6 +113,12 @@ const savePlanToDatabase = async (blob: Blob) => {
     });
   };
 
+  const loadPlan = async (plan) => {
+  setMgrsCoord(plan.mgrsCoord);
+  setUnits(plan.units);
+  setContours(plan.contours);
+  await loadElevation(plan.mgrsCoord);
+};
   // Load elevation data based on MGRS coordinates
   const loadElevation = async (mgrsInput: string) => {
     try {
@@ -206,6 +228,36 @@ const savePlanToDatabase = async (blob: Blob) => {
             style={{ width: '100%', padding: '8px', marginBottom: '10px' }}
           />
         </div>
+        <div style={{ marginBottom: '20px' }}>
+  <h3>Saved Plans</h3>
+  {savedPlans.length === 0 ? (
+    <p>No saved plans</p>
+  ) : (
+    <ul style={{ listStyle: 'none', padding: 0 }}>
+      {savedPlans.map(plan => (
+        <li key={plan.id} style={{ marginBottom: '10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>{plan.name}</span>
+            <button 
+              onClick={() => loadPlan(plan)}
+              style={{
+                padding: '2px 6px',
+                backgroundColor: '#2196F3',
+                color: 'white',
+                border: 'none',
+                borderRadius: '3px',
+                cursor: 'pointer'
+              }}
+            >
+              Load
+            </button>
+          </div>
+          <small>{new Date(plan.createdAt).toLocaleString()}</small>
+        </li>
+      ))}
+    </ul>
+  )}
+</div>
         <h2>Battle Planner</h2>
         
         {/* Coordinate Input */}
@@ -338,10 +390,14 @@ const savePlanToDatabase = async (blob: Blob) => {
             scrollWheelZoom={true}
             style={{ height: "100%", width: "100%" }}
             // onClick={handleMapClick}
-          >
+            >
             <TileLayer
               url={`https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`}
               attribution="© Mapbox"
+            />
+            <MapScreenshot 
+              mapContainerRef={mapContainerRef} 
+              onCapture={savePlanToDatabase} 
             />
             
             <MapClickHandler onClick={handleMapClick} />
@@ -373,10 +429,6 @@ const savePlanToDatabase = async (blob: Blob) => {
                   }
                 }}
               >
-                <MapScreenshot 
-                  mapContainerRef={mapContainerRef} 
-                  onCapture={savePlanToDatabase} 
-                />
                 <Popup>
                   <div>
                     <strong>{UNIT_TYPES[unit.type].name}</strong><br />
