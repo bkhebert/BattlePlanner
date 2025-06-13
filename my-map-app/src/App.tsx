@@ -36,6 +36,8 @@ function TerrainContourMap() {
   }>>([]);
   const [selectedUnitType, setSelectedUnitType] = useState<keyof typeof UNIT_TYPES>("infantry");
   const [isAddingUnits, setIsAddingUnits] = useState(false);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const [planName, setPlanName] = useState('');
 
   // const handleMapClick = (latlng) => {
   //      setClickedLatLng(latlng);
@@ -194,6 +196,16 @@ const savePlanToDatabase = async (blob: Blob) => {
         borderRight: '1px solid #ddd',
         overflowY: 'auto'
       }}>
+        <div style={{ marginBottom: '20px' }}>
+          <h3>Save Plan</h3>
+          <input
+            type="text"
+            value={planName}
+            onChange={(e) => setPlanName(e.target.value)}
+            placeholder="Plan name"
+            style={{ width: '100%', padding: '8px', marginBottom: '10px' }}
+          />
+        </div>
         <h2>Battle Planner</h2>
         
         {/* Coordinate Input */}
@@ -315,7 +327,7 @@ const savePlanToDatabase = async (blob: Blob) => {
       </div>
 
       {/* Map Container */}
-      <div style={{ flex: 1, height: '100%' }}>
+      <div ref={mapContainerRef} style={{ flex: 1, height: '100%' }}>
         {bbox && (
           <MapContainer
             center={[(bbox[1] + bbox[3]) / 2, (bbox[0] + bbox[2]) / 2]}
@@ -331,6 +343,7 @@ const savePlanToDatabase = async (blob: Blob) => {
               url={`https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`}
               attribution="© Mapbox"
             />
+            
             <MapClickHandler onClick={handleMapClick} />
             
             {/* Contour Lines */}
@@ -360,6 +373,10 @@ const savePlanToDatabase = async (blob: Blob) => {
                   }
                 }}
               >
+                <MapScreenshot 
+                  mapContainerRef={mapContainerRef} 
+                  onCapture={savePlanToDatabase} 
+                />
                 <Popup>
                   <div>
                     <strong>{UNIT_TYPES[unit.type].name}</strong><br />
