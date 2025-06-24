@@ -8,6 +8,7 @@ import * as tilebelt from "@mapbox/tilebelt";
 import * as MarchingSquares from "marchingsquares";
 import MapClickHandler from "./components/MapClickHandler";
 import axios from "axios";
+import MapRecentering from "./components/MapRecentering";
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiYmtoZWJlcnQiLCJhIjoiY21idjB1c2p4MGs5dzJscTFwdXlqY2E3YSJ9.ac5ytr69UhIEwGFrKyX5Mw';
 const ZOOM = 14;
 
@@ -28,7 +29,7 @@ function TerrainContourMap() {
   const [clickedLatLng, setClickedLatLng] = useState(null);
   const [contours, setContours] = useState<Array<Array<[number, number]>>>([]);
   const [bbox, setBbox] = useState<[number, number, number, number] | null>(null);
-  const [mgrsCoord, setMgrsCoord] = useState("15SWC80826445"); // Default MGRS
+  const [mgrsCoord, setMgrsCoord] = useState("15RYP81881486"); // Default MGRS
   const [units, setUnits] = useState<Array<{
     id: string;
     position: [number, number];
@@ -415,6 +416,7 @@ const savePlanToDatabase = async (blob: Blob) => {
               url={`https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`}
               attribution="© Mapbox"
             />
+            <MapRecentering bbox={bbox} />
             <MapScreenshot 
               mapContainerRef={mapContainerRef} 
               onCapture={savePlanToDatabase} 
