@@ -9,7 +9,7 @@ import * as MarchingSquares from "marchingsquares";
 import MapClickHandler from "./components/MapClickHandler";
 import axios from "axios";
 import MapRecentering from "./components/MapRecentering";
-const MAPBOX_TOKEN = 'pk.eyJ1IjoiYmtoZWJlcnQiLCJhIjoiY21idjB1c2p4MGs5dzJscTFwdXlqY2E3YSJ9.ac5ytr69UhIEwGFrKyX5Mw';
+const MAPBOX_TOKEN = '';
 const ZOOM = 14;
 
 // Military unit types with icons
