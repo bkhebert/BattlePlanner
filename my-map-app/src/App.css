@@ -17,7 +17,21 @@
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
-
+.unit-marker {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #000;
+  border: 2px solid white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+  cursor: pointer;
+  z-index: 10;
+}
 @keyframes logo-spin {
   from {
     transform: rotate(0deg);
