@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 /* @ts-nocheck */
 import { useEffect, useState, useRef } from "react";
@@ -15,27 +17,23 @@ mapboxgl.accessToken = 'pk.eyJ1IjoiYmtoZWJlcnQiLCJhIjoiY21idjB1c2p4MGs5dzJscTFwd
 //const ZOOM = 14;
 const ZOOM = 16;
 
-const UNIT_TYPES = {
+interface UnitType {
+  name?: string;
+  label?: string;
+  iconColor: string;
+  symbol: string;
+  type?: string;
+  shape?: string;
+}
+
+const UNIT_TYPES: Record<string, UnitType> = {
   infantry: { name: "Infantry", iconColor: "#4CAF50", symbol: "I" },
   tank: { name: "Tank", iconColor: "#F44336", symbol: "T" },
   artillery: { name: "Artillery", iconColor: "#2196F3", symbol: "A" },
   hq: { name: "HQ", iconColor: "#9C27B0", symbol: "HQ" },
   enemy: { label: "Enemy Unit", iconColor: "#FF0000", symbol: "▲", shape: "triangle" },
-  enemyZone: { label: "Enemy Zone", color: "rgba(255, 0, 0, 0.3)", type: "circle-zone" },
-  safeZone: { label: "Safe Zone", color: "rgba(0, 255, 0, 0.3)", type: "circle-zone" },
-} as const;
-
-type UnitType = keyof typeof UNIT_TYPES;
-type Unit = {
-  id: string | number;
-  position: [number, number];
-  type: UnitType;
-};
-type Zone = {
-  id: number;
-  type: string;
-  center: [number, number];
-  radiusMeters: number;
+  enemyZone: { label: "Enemy Zone", iconColor: "rgba(255, 0, 0, 0.3)", symbol: null, type: "circle-zone" },
+  safeZone: { label: "Safe Zone", iconColor: "rgba(0, 255, 0, 0.3)", symbol: null,  type: "circle-zone" },
 };
 
 // Helper functions
@@ -43,7 +41,7 @@ const decodeElevation = (r: number, g: number, b: number): number => {
   return -10000 + ((r * 256 * 256 + g * 256 + b) * 0.1);
 };
 
-const createMarkerElement = (unitType: UnitType) => {
+const createMarkerElement = (unitType: any) => {
   const el = document.createElement('div');
   el.className = 'unit-marker';
   const unitData = UNIT_TYPES[unitType];
@@ -74,7 +72,7 @@ const createMarkerElement = (unitType: UnitType) => {
 
 const ThreeDeeMap = () => {
   // State
-  const [selectedElementType, setSelectedElementType] = useState<UnitType>('infantry');
+  const [selectedElementType, setSelectedElementType] = useState<any>('infantry');
   const [slideshowPlans, setSlideshowPlans] = useState<any[]>([]);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [isSlideshowActive, setIsSlideshowActive] = useState(false);
@@ -83,8 +81,8 @@ const ThreeDeeMap = () => {
   const [contours, setContours] = useState<Array<Array<[number, number]>>>([]);
   const [bbox, setBbox] = useState<[number, number, number, number] | null>(null);
   const [mgrsCoord, setMgrsCoord] = useState("15RYP81881486");
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [zones, setZones] = useState<Zone[]>([]);
+  const [units, setUnits] = useState<any[]>([]);
+  const [zones, setZones] = useState<any[]>([]);
   const [planName, setPlanName] = useState('');
   const [savedPlans, setSavedPlans] = useState<any[]>([]);
   const [isAddingUnits, setIsAddingUnits] = useState(false);
@@ -270,7 +268,7 @@ const ThreeDeeMap = () => {
     const enemyZones = zones.filter(z => z.type === 'enemyZone');
     const safeZones = zones.filter(z => z.type === 'safeZone');
 
-    const makeGeoJSON = (zoneArray: Zone[]) => ({
+    const makeGeoJSON = (zoneArray: any[]) => ({
       type: "FeatureCollection",
       features: zoneArray.map(zone => ({
         type: "Feature",
@@ -576,7 +574,7 @@ const ThreeDeeMap = () => {
     const toUnits: any[] = typeof toPlan.units === 'string' ? JSON.parse(toPlan.units) : toPlan.units;
     const fromMap = new Map(fromUnits.map(u => [u.id, u]));
     const toMap = new Map(toUnits.map(u => [u.id, u]));
-    const nextUnits: Unit[] = [];
+    const nextUnits: any[] = [];
     const animations: Promise<void>[] = [];
 
     for (const unit of fromUnits) {
@@ -666,7 +664,7 @@ const ThreeDeeMap = () => {
           <label>Element Type:</label>
           <select 
             value={selectedElementType} 
-            onChange={e => setSelectedElementType(e.target.value as UnitType)}
+            onChange={e => setSelectedElementType(e.target.value as any)}
           >
             {Object.entries(UNIT_TYPES).map(([key, value]) => (
               <option key={key} value={key}>{value.name || value.label}</option>
