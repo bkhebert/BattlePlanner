@@ -10,7 +10,7 @@ import * as MarchingSquares from "marchingsquares";
 import MapClickHandler from "../components/MapClickHandler";
 import axios from "axios";
 import MapRecentering from "../components/MapRecentering";
-
+import baseURL from "../constants/constant";
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiYmtoZWJlcnQiLCJhIjoiY21idjB1c2p4MGs5dzJscTFwdXlqY2E3YSJ9.ac5ytr69UhIEwGFrKyX5Mw';
 const ZOOM = 14;
 
@@ -44,7 +44,7 @@ function TerrainContourMap() {
   useEffect(() => {
   const fetchPlans = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/battle/plans',{ 
+      const response = await fetch(`${baseURL}/api/battle/plans`,{ 
         headers: {
         'Content-Type': 'application/json',
       }});
@@ -67,7 +67,7 @@ const savePlanToDatabase = async (blob: Blob) => {
     formData.append('contours', JSON.stringify(contours));
 
     const response = await axios.post(
-      'http://localhost:3000/api/battle/saveBattlePlan',
+      `${baseURL}/api/battle/saveBattlePlan`,
       formData,
       {
         headers: {
@@ -79,7 +79,7 @@ const savePlanToDatabase = async (blob: Blob) => {
     if (response.status === 201) {
       alert('Battle plan saved successfully!');
       // Refresh the saved plans list
-      const plansResponse = await fetch('http://localhost:3000/api/battle/plans', {
+      const plansResponse = await fetch(`${baseURL}/api/battle/plans`, {
         headers: {
           'Content-Type': 'application/json',
         },

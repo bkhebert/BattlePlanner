@@ -11,7 +11,7 @@ import { toPoint } from "mgrs";
 import * as tilebelt from "@mapbox/tilebelt";
 import * as MarchingSquares from "marchingsquares";
 import axios from "axios";
-
+import baseURL from "../constants/constant";
 // Initialize Mapbox
 mapboxgl.accessToken = 'pk.eyJ1IjoiYmtoZWJlcnQiLCJhIjoiY21idjB1c2p4MGs5dzJscTFwdXlqY2E3YSJ9.ac5ytr69UhIEwGFrKyX5Mw';
 //const ZOOM = 14;
@@ -483,7 +483,7 @@ const ThreeDeeMap = () => {
   useEffect(() => {
     const fetchPlans = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/battle/plans', { 
+        const response = await fetch(`${baseURL}/api/battle/plans`, { 
           headers: {
             'Content-Type': 'application/json',
           }
@@ -545,7 +545,7 @@ const ThreeDeeMap = () => {
       formData.append('contours', JSON.stringify(contours));
 
       const res = await axios.post(
-        'http://localhost:3000/api/battle/saveBattlePlan',
+        `${baseURL}/api/battle/saveBattlePlan`,
         formData,
         {
           headers: {
@@ -556,7 +556,7 @@ const ThreeDeeMap = () => {
 
       if (res.status === 201) {
         alert('Battle plan saved successfully!');
-        const plansResponse = await fetch('http://localhost:3000/api/battle/plans');
+        const plansResponse = await fetch(`${baseURL}/api/battle/plans`);
         const plans = await plansResponse.json();
         setSavedPlans(plans);
       }
