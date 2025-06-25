@@ -1,0 +1,8 @@
+# render.yaml
+static_sites:
+  - name: battleplanner
+    buildCommand: npm run build
+    publish: dist
+    routes:
+      - path: /*
+        destination: /index.html
