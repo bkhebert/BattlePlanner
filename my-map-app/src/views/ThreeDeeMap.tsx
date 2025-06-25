@@ -9,36 +9,86 @@ import * as MarchingSquares from "marchingsquares";
 import axios from "axios";
 
 // Initialize Mapbox
-mapboxgl.accessToken = '';
-const ZOOM = 14;
+mapboxgl.accessToken = 'pk.eyJ1IjoiYmtoZWJlcnQiLCJhIjoiY21idjB1c2p4MGs5dzJscTFwdXlqY2E3YSJ9.ac5ytr69UhIEwGFrKyX5Mw';
+//const ZOOM = 14;
+const ZOOM = 16;
 
 const UNIT_TYPES = {
   infantry: { name: "Infantry", iconColor: "#4CAF50", symbol: "I" },
   tank: { name: "Tank", iconColor: "#F44336", symbol: "T" },
   artillery: { name: "Artillery", iconColor: "#2196F3", symbol: "A" },
-  hq: { name: "HQ", iconColor: "#9C27B0", symbol: "HQ" }
+  hq: { name: "HQ", iconColor: "#9C27B0", symbol: "HQ" },
+  enemy: { label: "Enemy Unit", iconColor: "#FF0000", symbol: "▲", shape: "triangle" },
+  enemyZone: { label: "Enemy Zone", color: "rgba(255, 0, 0, 0.3)", type: "circle-zone" },
+  safeZone: { label: "Safe Zone", color: "rgba(0, 255, 0, 0.3)", type: "circle-zone" },
+} as const;
+
+type UnitType = keyof typeof UNIT_TYPES;
+type Unit = {
+  id: string | number;
+  position: [number, number];
+  type: UnitType;
+};
+type Zone = {
+  id: number;
+  type: string;
+  center: [number, number];
+  radiusMeters: number;
 };
 
-function decodeElevation(r: number, g: number, b: number): number {
+// Helper functions
+const decodeElevation = (r: number, g: number, b: number): number => {
   return -10000 + ((r * 256 * 256 + g * 256 + b) * 0.1);
-}
+};
 
-function ThreeDeeMap() {
+const createMarkerElement = (unitType: UnitType) => {
+  const el = document.createElement('div');
+  el.className = 'unit-marker';
+  const unitData = UNIT_TYPES[unitType];
+  
+  el.innerHTML = unitData.symbol;
+  el.style.backgroundColor = unitData.iconColor;
+  el.style.borderRadius = unitType === 'hq' ? '4px' : '50%';
+  el.style.width = '24px';
+  el.style.height = '24px';
+  el.style.display = 'flex';
+  el.style.alignItems = 'center';
+  el.style.justifyContent = 'center';
+  el.style.color = 'white';
+  el.style.fontWeight = 'bold';
+  el.style.border = '2px solid white';
+
+  if (unitType === 'enemy') {
+    el.style.width = '0';
+    el.style.height = '0';
+    el.style.borderLeft = '12px solid transparent';
+    el.style.borderRight = '12px solid transparent';
+    el.style.borderBottom = '24px solid red';
+    el.style.backgroundColor = 'transparent';
+  }
+
+  return el;
+};
+
+const ThreeDeeMap = () => {
+  // State
+  const [selectedElementType, setSelectedElementType] = useState<UnitType>('infantry');
+  const [slideshowPlans, setSlideshowPlans] = useState<any[]>([]);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [isSlideshowActive, setIsSlideshowActive] = useState(false);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [map, setMap] = useState<mapboxgl.Map | null>(null);
   const [contours, setContours] = useState<Array<Array<[number, number]>>>([]);
   const [bbox, setBbox] = useState<[number, number, number, number] | null>(null);
   const [mgrsCoord, setMgrsCoord] = useState("15RYP81881486");
-  const [units, setUnits] = useState<Array<{
-    id: string | number;
-    position: [number, number];
-    type: keyof typeof UNIT_TYPES;
-  }>>([]);
-  const [selectedUnitType, setSelectedUnitType] = useState<keyof typeof UNIT_TYPES>("infantry");
-  const [isAddingUnits, setIsAddingUnits] = useState(false);
-  const mapContainer = useRef<HTMLDivElement>(null);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [zones, setZones] = useState<Zone[]>([]);
   const [planName, setPlanName] = useState('');
   const [savedPlans, setSavedPlans] = useState<any[]>([]);
+  const [isAddingUnits, setIsAddingUnits] = useState(false);
+  
+  // Refs
+  const mapContainer = useRef<HTMLDivElement>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const popupsRef = useRef<mapboxgl.Popup[]>([]);
 
@@ -49,7 +99,7 @@ function ThreeDeeMap() {
     const mapInstance = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/outdoors-v12',
-      center: [-90.0715, 29.9511], // New Orleans coordinates
+      center: [-90.0715, 29.9511],
       zoom: ZOOM,
       pitch: 45,
       bearing: 0,
@@ -57,7 +107,7 @@ function ThreeDeeMap() {
       preserveDrawingBuffer: true
     });
 
-    mapInstance.on('load', () => {
+    const setupMapLayers = () => {
       // Add terrain
       mapInstance.addSource('mapbox-dem', {
         type: 'raster-dem',
@@ -99,7 +149,10 @@ function ThreeDeeMap() {
         position: [1.15, 210, 30],
         intensity: 0.5
       });
+    };
 
+    mapInstance.on('load', () => {
+      setupMapLayers();
       setMap(mapInstance);
       setMapLoaded(true);
     });
@@ -123,25 +176,8 @@ function ThreeDeeMap() {
 
     // Create new markers with popups
     units.forEach(unit => {
-      const el = document.createElement('div');
-      el.className = 'unit-marker';
-      el.style.backgroundColor = UNIT_TYPES[unit.type].iconColor;
-      el.style.borderRadius = unit.type === 'hq' ? '4px' : '50%';
-      el.style.width = '24px';
-      el.style.height = '24px';
-      el.style.display = 'flex';
-      el.style.alignItems = 'center';
-      el.style.justifyContent = 'center';
-      el.style.color = 'white';
-      el.style.fontWeight = 'bold';
-      el.style.border = '2px solid white';
-      el.innerHTML = UNIT_TYPES[unit.type].symbol;
-
-      // Create marker
-      const marker = new mapboxgl.Marker({
-        element: el,
-        draggable: true
-      })
+      const el = createMarkerElement(unit.type);
+      const marker = new mapboxgl.Marker({ element: el, draggable: true })
         .setLngLat([unit.position[1], unit.position[0]])
         .addTo(map);
 
@@ -151,34 +187,24 @@ function ThreeDeeMap() {
         <div>
           <strong>${UNIT_TYPES[unit.type].name}</strong><br />
           Position: ${unit.position[0].toFixed(4)}, ${unit.position[1].toFixed(4)}<br />
-          <button class="delete-unit-btn" data-id="${unit.id}" style="
-            margin-top: 5px;
-            padding: 2px 8px;
-            background-color: #ff4444;
-            color: white;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-          ">
+          <button class="delete-unit-btn" data-id="${unit.id}">
             Delete
           </button>
         </div>
       `;
 
-      // Create popup
-      const popup = new mapboxgl.Popup({ offset: 25 })
-        .setDOMContent(popupContent);
-
-      // Attach popup to marker
+      const popup = new mapboxgl.Popup({ offset: 25 }).setDOMContent(popupContent);
       marker.setPopup(popup);
 
       // Handle drag events
-      marker.getElement().addEventListener('dragend', () => {
+      marker.on('dragend', () => {
         const lngLat = marker.getLngLat();
         setUnits(prev => prev.map(u => 
           u.id === unit.id ? { ...u, position: [lngLat.lat, lngLat.lng] } : u
         ));
       });
+
+      (marker as any).unitId = unit.id;
 
       // Handle delete button click
       popupContent.querySelector('.delete-unit-btn')?.addEventListener('click', (e) => {
@@ -228,28 +254,91 @@ function ThreeDeeMap() {
     });
   }, [contours, map, mapLoaded]);
 
-  // Handle click events for adding units
+  // Handle zones
+  useEffect(() => {
+    if (!map || !mapLoaded) return;
+
+    // Clear existing zone layers
+    const zoneLayerIds = ['enemy-zones', 'safe-zones'];
+    zoneLayerIds.forEach(id => {
+      if (map.getLayer(id)) map.removeLayer(id);
+      if (map.getSource(id)) map.removeSource(id);
+    });
+
+    const enemyZones = zones.filter(z => z.type === 'enemyZone');
+    const safeZones = zones.filter(z => z.type === 'safeZone');
+
+    const makeGeoJSON = (zoneArray: Zone[]) => ({
+      type: "FeatureCollection",
+      features: zoneArray.map(zone => ({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [zone.center[1], zone.center[0]]
+        },
+        properties: {
+          radius: zone.radiusMeters
+        }
+      }))
+    });
+
+    const addCircleLayer = (id: string, data: any, color: string) => {
+      map.addSource(id, {
+        type: 'geojson',
+        data
+      });
+      map.addLayer({
+        id,
+        type: 'circle',
+        source: id,
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'],
+            10, ['/', ['get', 'radius'], 2],
+            14, ['get', 'radius']
+          ],
+          'circle-color': color,
+          'circle-opacity': 0.4
+        }
+      });
+    };
+
+    if (enemyZones.length) addCircleLayer('enemy-zones', makeGeoJSON(enemyZones), 'rgba(255,0,0,0.3)');
+    if (safeZones.length) addCircleLayer('safe-zones', makeGeoJSON(safeZones), 'rgba(0,255,0,0.3)');
+  }, [zones, map, mapLoaded]);
+
+  // Handle click events for adding units/zones
   useEffect(() => {
     if (!map || !mapLoaded) return;
 
     const handleClick = (e: mapboxgl.MapMouseEvent) => {
       if (!isAddingUnits) return;
-      
-      setUnits(prev => [
-        ...prev,
-        {
+      const selected = UNIT_TYPES[selectedElementType];
+
+      if (selected.type === 'circle-zone') {
+        // Add a zone
+        const newZone = {
           id: Date.now(),
+          type: selectedElementType,
+          center: [e.lngLat.lat, e.lngLat.lng],
+          radiusMeters: 150
+        };
+        setZones(prev => [...prev, newZone]);
+      } else {
+        // Add a unit
+        const newUnit = {
+          id: Date.now(),
+          type: selectedElementType,
           position: [e.lngLat.lat, e.lngLat.lng],
-          type: selectedUnitType
-        }
-      ]);
+        };
+        setUnits(prev => [...prev, newUnit]);
+      }
     };
 
     map.on('click', handleClick);
     return () => {
       map.off('click', handleClick);
     };
-  }, [map, mapLoaded, isAddingUnits, selectedUnitType]);
+  }, [map, mapLoaded, isAddingUnits, selectedElementType]);
 
   // Load elevation data
   const loadElevation = async (mgrsInput: string) => {
@@ -321,10 +410,43 @@ function ThreeDeeMap() {
     }
   };
 
+  // Slideshow functions
+  const addToSlideshow = (plan: any) => {
+    setSlideshowPlans(prev => [...prev, plan]);
+  };
+
+  const removeFromSlideshow = (index: number) => {
+    setSlideshowPlans(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const startSlideshow = async () => {
+    if (slideshowPlans.length === 0) return;
+    setCurrentSlideIndex(0);
+    setIsSlideshowActive(true);
+    await loadPlan(slideshowPlans[0]);
+  };
+
+  const nextSlide = async () => {
+    if (currentSlideIndex < slideshowPlans.length - 1) {
+      const from = slideshowPlans[currentSlideIndex];
+      const to = slideshowPlans[currentSlideIndex + 1];
+      await animateUnitsBetweenSlides(from, to);
+      setCurrentSlideIndex(prev => prev + 1);
+    }
+  };
+
+  const prevSlide = async () => {
+    if (currentSlideIndex > 0) {
+      const from = slideshowPlans[currentSlideIndex];
+      const to = slideshowPlans[currentSlideIndex - 1];
+      await animateUnitsBetweenSlides(from, to);
+      setCurrentSlideIndex(i => i - 1);
+    }
+  };
+
   // Load saved plan
   const loadPlan = async (plan: any) => {
     try {
-      // Parse the data first
       const parsedUnits = typeof plan.units === 'string' 
         ? JSON.parse(plan.units) 
         : plan.units;
@@ -332,7 +454,6 @@ function ThreeDeeMap() {
         ? JSON.parse(plan.contours)
         : plan.contours;
 
-      // Set MGRS and load elevation first
       setMgrsCoord(plan.mgrsCoord);
       await loadElevation(plan.mgrsCoord);
 
@@ -350,10 +471,8 @@ function ThreeDeeMap() {
         });
       }
 
-      // Now update the state
       setUnits(parsedUnits);
       setContours(parsedContours);
-
     } catch (error) {
       console.error('Error loading plan:', error);
       alert('Failed to load battle plan');
@@ -447,57 +566,197 @@ function ThreeDeeMap() {
     }
   };
 
+  // Unit animation between slides
+  const animateUnitsBetweenSlides = async (fromPlan: any, toPlan: any) => {
+    if (!map) return;
+
+    const fromUnits: any[] = typeof fromPlan.units === 'string' ? JSON.parse(fromPlan.units) : fromPlan.units;
+    const toUnits: any[] = typeof toPlan.units === 'string' ? JSON.parse(toPlan.units) : toPlan.units;
+    const fromMap = new Map(fromUnits.map(u => [u.id, u]));
+    const toMap = new Map(toUnits.map(u => [u.id, u]));
+    const nextUnits: Unit[] = [];
+    const animations: Promise<void>[] = [];
+
+    for (const unit of fromUnits) {
+      const marker = markersRef.current.find(m => (m as any).unitId === unit.id);
+
+      if (!toMap.has(unit.id)) {
+        // Fade out
+        const el = marker?.getElement();
+        if (el) {
+          el.style.transition = 'opacity 1s';
+          el.style.opacity = '0';
+        }
+        continue;
+      }
+
+      const dest = toMap.get(unit.id);
+      const start = unit.position;
+      const end = dest.position;
+      const duration = 1000;
+      const startTime = performance.now();
+
+      animations.push(new Promise<void>(resolve => {
+        const step = (now: number) => {
+          let t = Math.min((now - startTime) / duration, 1);
+          t = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+          const lat = start[0] + (end[0] - start[0]) * t;
+          const lng = start[1] + (end[1] - start[1]) * t;
+          marker?.setLngLat([lng, lat]);
+
+          if (t < 1) {
+            requestAnimationFrame(step);
+          } else {
+            resolve();
+          }
+        };
+        requestAnimationFrame(step);
+      }));
+
+      nextUnits.push(dest);
+    }
+
+    // Add new units that didn't exist before
+    for (const unit of toUnits) {
+      if (!fromMap.has(unit.id)) {
+        const el = createMarkerElement(unit.type);
+        el.style.opacity = '0';
+
+        const marker = new mapboxgl.Marker({ element: el })
+          .setLngLat([unit.position[1], unit.position[0]])
+          .addTo(map);
+
+        (marker as any).unitId = unit.id;
+
+        requestAnimationFrame(() => {
+          el.style.transition = 'opacity 1s';
+          el.style.opacity = '1';
+        });
+
+        markersRef.current.push(marker);
+        nextUnits.push(unit);
+      }
+    }
+
+    await Promise.all(animations);
+    setUnits(nextUnits);
+  };
+
   // Initial elevation load
   useEffect(() => {
     loadElevation(mgrsCoord);
   }, []);
-return (
-  <div style={{ display: 'flex', height: '100vh' }}>
-    <div style={{ width: '280px', padding: '1rem', backgroundColor: '#111', color: 'white' }}>
-      <h2>Battle Planner</h2>
 
-      <label>MGRS Coord:</label>
-      <input value={mgrsCoord} onChange={e => setMgrsCoord(e.target.value)} />
-      <button onClick={() => loadElevation(mgrsCoord)}>Load Terrain</button>
+  return (
+    <div style={{ display: 'flex', height: '100vh' }}>
+      <div style={{ width: '280px', padding: '1rem', backgroundColor: '#111', color: 'white' }}>
+        <h2>Battle Planner</h2>
+        
+        <div>
+          <label>MGRS Coord:</label>
+          <input value={mgrsCoord} onChange={e => setMgrsCoord(e.target.value)} />
+          <button onClick={() => loadElevation(mgrsCoord)}>Load Terrain</button>
+        </div>
+        
+        <hr />
+        
+        <div>
+          <label>Element Type:</label>
+          <select 
+            value={selectedElementType} 
+            onChange={e => setSelectedElementType(e.target.value as UnitType)}
+          >
+            {Object.entries(UNIT_TYPES).map(([key, value]) => (
+              <option key={key} value={key}>{value.name || value.label}</option>
+            ))}
+          </select>
+          <button onClick={() => setIsAddingUnits(!isAddingUnits)}>
+            {isAddingUnits ? 'Cancel' : 'Add Units'}
+          </button>
+        </div>
+        
+        <hr />
+        
+        <div>
+          <label>Plan Name:</label>
+          <input value={planName} onChange={e => setPlanName(e.target.value)} />
+          <button onClick={() => savePlanToDatabase()}>Save Plan</button>
+          <button onClick={() => handleScreenshot()}>Take Screenshot</button>
+        </div>
+        
+        <hr />
+        
+        <div>
+          <h4>Slideshow Queue</h4>
+          <ul>
+            {slideshowPlans.map((plan, index) => (
+              <li key={plan.id || index}>
+                {plan.name}
+                <button 
+                  onClick={() => removeFromSlideshow(index)}
+                  className="delete-btn"
+                >
+                  X
+                </button>
+              </li>
+            ))}
+          </ul>
 
-      <hr />
+          {savedPlans.map(plan => (
+            <button 
+              key={`queue-${plan.id}`} 
+              onClick={() => addToSlideshow(plan)}
+              className="add-btn"
+            >
+              ➕ {plan.name}
+            </button>
+          ))}
 
-      <label>Unit Type:</label>
-      <select value={selectedUnitType} onChange={e => setSelectedUnitType(e.target.value)}>
-        {Object.keys(UNIT_TYPES).map(key => (
-          <option key={key} value={key}>{UNIT_TYPES[key].name}</option>
-        ))}
-      </select>
-      <button onClick={() => setIsAddingUnits(!isAddingUnits)}>
-        {isAddingUnits ? 'Cancel' : 'Add Units'}
-      </button>
+          <div className="slideshow-controls">
+            <button 
+              onClick={startSlideshow} 
+              disabled={slideshowPlans.length === 0}
+            >
+              ▶ Start Slideshow
+            </button>
+            <div>
+              <button 
+                onClick={prevSlide} 
+                disabled={currentSlideIndex === 0 || !isSlideshowActive}
+              >
+                ⬅ Prev
+              </button>
+              <button 
+                onClick={nextSlide} 
+                disabled={currentSlideIndex >= slideshowPlans.length - 1 || !isSlideshowActive}
+              >
+                Next ➡
+              </button>
+            </div>
+            {isSlideshowActive && (
+              <div>
+                <strong>Slide:</strong> {currentSlideIndex + 1}/{slideshowPlans.length}
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <div>
+          <h4>Saved Plans</h4>
+          <ul>
+            {savedPlans.map(plan => (
+              <li key={plan.id || plan.name}>
+                <button onClick={() => loadPlan(plan)}>{plan.name}</button>
+                <button onClick={() => addToSlideshow(plan)}>+ Slideshow</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
 
-      <hr />
-
-      <label>Plan Name:</label>
-      <input value={planName} onChange={e => setPlanName(e.target.value)} />
-      <button onClick={() => savePlanToDatabase()}>Save Plan</button>
-      <button onClick={() => handleScreenshot()}>Take Screenshot</button>
-
-      <hr />
-
-      <h4>Saved Plans</h4>
-      <ul>
-        {savedPlans.map(plan => (
-        <li key={plan.id || plan.name}>
-      <button onClick={() => loadPlan(plan)}>{plan.name}</button>
-    </li>
-        ))}
-      </ul>
+      <div ref={mapContainer} style={{ flex: 1 }} />
     </div>
-
-    <div ref={mapContainer} style={{ flex: 1 }} />
-    <MapScreenshot 
-  mapContainerRef={mapContainer} 
-  onCapture={savePlanToDatabase}
-/>
-  </div>
-);
-}
+  );
+};
 
 export default ThreeDeeMap;
