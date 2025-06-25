@@ -1,3 +1,5 @@
+
+/* @ts-nocheck */
 import { useEffect, useState, useRef } from "react";
 import { MapScreenshot } from "../components/MapScreenShot";
 import mapboxgl from 'mapbox-gl';

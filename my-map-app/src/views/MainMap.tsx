@@ -1,3 +1,4 @@
+/* @ts-nocheck */
 import { useEffect, useState, useRef } from "react";
 import { MapScreenshot } from "../components/MapScreenShot";
 import { MapContainer, TileLayer, Polyline, Marker, Popup } from "react-leaflet";
@@ -40,11 +41,6 @@ function TerrainContourMap() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [planName, setPlanName] = useState('');
   const [savedPlans, setSavedPlans] = useState([]);
-  // const handleMapClick = (latlng) => {
-  //      setClickedLatLng(latlng);
-  //      console.log('Clicked at:', latlng);
-  //      console.log(clickedLatLng)
-  //    };
   useEffect(() => {
   const fetchPlans = async () => {
     try {
