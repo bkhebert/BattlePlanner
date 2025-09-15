@@ -21,6 +21,7 @@ app.use(express.json({ limit: '15mb' }));
 app.set('trust proxy', 1);
 
 app.get("/", (req, res) => {
+  console.log("received get request to this site");
   res.send("Hello from BattlePlanner backend");
 });
 
