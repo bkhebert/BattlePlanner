@@ -36,7 +36,7 @@ BattleRouter.get('/plans', async (req: any, res: any) => {
     const plans = await BattlePlan.findAll();
     res.json(plans);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch plans' });
+    res.status(500).json({ error: 'Failed to fetch plans from battle router' });
   }
 });
 
