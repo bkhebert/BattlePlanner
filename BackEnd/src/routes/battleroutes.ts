@@ -11,7 +11,7 @@ const upload = multer({ storage: multer.memoryStorage() });
     console.log('redbody', req.body)
     console.log(req.body)
     const { mgrsCoord, units, contours, planName } = req.body;
-
+    console.log(new Date().toISOString());
     BattlePlan.create({
       name: planName || `Plan-${new Date().toISOString()}`,
       mgrsCoord,
