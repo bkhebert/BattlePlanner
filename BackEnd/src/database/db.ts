@@ -4,21 +4,6 @@ import dotenv from 'dotenv';
 // Load environment variables
 dotenv.config();
 
-// Set up Sequelize connection
-// if(process.env.NODE_ENV === "production"){
-// const sequelize = new Sequelize(
-//   process.env.DATABASE_URL!, // Render provides this
-//   {
-//     dialect: 'postgres',
-//     dialectOptions: {
-//       ssl:  {
-//         require: true, rejectUnauthorized: false  // Render needs SSL
-//     }, // Disable SSL for local dev
-//     },
-//     logging: false, // Disable SQL logs in production
-// //   }
-// // );
-// } else {
 const database = new Sequelize(
   process.env.DB_NAME as string,
   process.env.DB_USER as string,
