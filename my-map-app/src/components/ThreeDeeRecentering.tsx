@@ -12,7 +12,7 @@ function ThreeDeeRecentering({ map, bbox, pitch = 45, bearing = 0 }) {
 
     map.flyTo({
       center,
-      zoom: map.getZoom(),
+      zoom: map.getZoom(), // Added 3D perspective
       pitch,    // Added 3D perspective
       bearing,  // Added for orientation
       essential: true // Ensures animation happens even if tab is inactive
