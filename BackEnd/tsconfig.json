@@ -11,7 +11,7 @@
     "skipLibCheck": true, // Skips checking .d.ts for type errors
     "allowJs": true,
     "resolveJsonModule": true,
-     "noImplicitAny": false,
+     "noImplicitAny": false, // Typescript hack
      "noUnusedParameters": false,
      "noUnusedLocals": false,
     "strictNullChecks": false
