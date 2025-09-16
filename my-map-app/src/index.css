@@ -7,11 +7,11 @@ html, body, #root {
   height: 24px;
   border-radius: 50%;
   background-color: #000;
-  border: 2px solid white;
+  border: 2px solid rgb(224, 224, 224);
   display: flex;
   justify-content: center;
   align-items: center;
-  color: white;
+  color: rgb(175, 172, 172);
   font-weight: bold;
   font-size: 14px;
   cursor: pointer;
