@@ -7,7 +7,6 @@ const BattleRouter = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
   BattleRouter.post('/saveBattlePlan', upload.single('image'),  (req: any, res: any) => {
-    console.log('saveBattlePlan reached!')
     console.log('redbody', req.body)
     console.log(req.body)
     const { mgrsCoord, units, contours, planName } = req.body;
