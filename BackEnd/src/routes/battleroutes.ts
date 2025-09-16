@@ -18,7 +18,6 @@ const upload = multer({ storage: multer.memoryStorage() });
       units,
       contours 
     }).then((data) => {
-      console.log('successful saving of data');
       console.log(data);
       res.sendStatus(200);
     }).catch((err) => {
