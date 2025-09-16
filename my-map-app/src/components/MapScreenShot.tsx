@@ -42,7 +42,7 @@ export function MapScreenshot({ mapContainerRef, onCapture }: MapScreenshotProps
         right: '20px',
         zIndex: 1000,
         padding: '8px 16px',
-        backgroundColor: '#4CAF50',
+        backgroundColor: '#469e49ff',
         color: 'white',
         border: 'none',
         borderRadius: '4px',
